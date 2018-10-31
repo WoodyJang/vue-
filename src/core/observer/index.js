@@ -14,6 +14,7 @@ import {
   isServerRendering
 } from '../util/index'
 
+// 获取所有我们要拦截的数组变异方法的名字
 const arrayKeys = Object.getOwnPropertyNames(arrayMethods)
 
 /**
@@ -58,6 +59,10 @@ export class Observer {
      */
     def(value, '__ob__', this)
     if (Array.isArray(value)) {
+      /**
+       * hasProto 是一个布尔值，它用来检测当前环境是否可以使用 __proto__ 属性
+       * 把数组实例与代理原型或与代理原型中定义的函数联系起来，从而拦截数组变异方法
+       */
       const augment = hasProto
         ? protoAugment
         : copyAugment
@@ -293,17 +298,28 @@ export function defineReactive (
  * already exist.
  */
 export function set (target: Array<any> | Object, key: any, val: any): any {
+  /**
+   * 将数组的长度修改为 target.length 和 key 中的较大者，否则如果当要设置的元素的索引大于数组长度时 splice 无效
+   */
   if (Array.isArray(target) && isValidArrayIndex(key)) {
     target.length = Math.max(target.length, key)
     target.splice(key, 1, val)
     return val
   }
+  /**
+   * 如果 target 不是一个数组，那么必然就是纯对象了，当给一个纯对象设置属性的时候，假设该属性已经在对象上有定义了，那么只需要直接设置该属性的值即可，这将自动触发响应，因为已存在的属性是响应式的
+   * 保证了 key 在 target 对象上，或在 target 的原型链上，同时必须不能在 Object.prototype 上
+   */
   if (key in target && !(key in Object.prototype)) {
     target[key] = val
     return val
   }
+  /**
+   * 定义了 ob 常量,它是数据对象 __ob__ 属性的引用
+   */
   const ob = (target: any).__ob__
-
+  // Vue 实例对象拥有 _isVue 属性，所以当第一个条件成立时，那么说明你正在使用 Vue.set/$set 函数为 Vue 实例对象添加属性，为了避免属性覆盖的情况出现，Vue.set/$set 函数不允许这么做，在非生产环境下会打印警告信息
+  // 第2个条件判断被观测的对象是否为根数据对象，如果为根数据对象，则警告，不允许在根数据对象上添加属性。因为根数据对象上没有__ob__
   if (target._isVue || (ob && ob.vmCount)) {
     process.env.NODE_ENV !== 'production' && warn(
       'Avoid adding reactive properties to a Vue instance or its root $data ' +
@@ -311,11 +327,16 @@ export function set (target: Array<any> | Object, key: any, val: any): any {
     )
     return val
   }
+  /**
+   * target 也许原本就是非响应的，这个时候 target.__ob__ 是不存在的，所以当发现 target.__ob__ 不存在时，就简单的赋值即可
+   */
   if (!ob) {
     target[key] = val
     return val
   }
+  // 使用 defineReactive 函数设置属性值，这是为了保证新添加的属性是响应式的
   defineReactive(ob.value, key, val)
+  // 触发响应。这就是添加全新属性触发响应的原理
   ob.dep.notify()
   return val
 }

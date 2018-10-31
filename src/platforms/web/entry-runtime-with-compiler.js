@@ -13,6 +13,7 @@ import { compileToFunctions } from './compiler/index'
 import { shouldDecodeNewlines, shouldDecodeNewlinesForHref } from './util/compat'
 
 // 根据 id 获取元素的 innerHTML
+// cached:该函数的作用是通过缓存来避免重复求值，提升性能
 const idToTemplate = cached(id => {
   const el = query(id)
   return el && el.innerHTML
@@ -37,6 +38,16 @@ Vue.prototype.$mount = function (
   }
 
   const options = this.$options
+  /**
+   * 如果 template 选项不存在，那么使用 el 元素的 outerHTML 作为模板内容
+    如果 template 选项存在：
+      且 template 的类型是字符串
+      如果第一个字符是 #，那么会把该字符串作为 css 选择符去选中对应的元素，并把该元素的 innerHTML 作为模板
+      如果第一个字符不是 #，那么什么都不做，就用 template 自身的字符串值作为模板
+      且 template 的类型是元素节点(template.nodeType 存在)
+      则使用该元素的 innerHTML 作为模板
+    若 template 既不是字符串又不是元素节点，那么在非生产环境会提示开发者传递的 template 选项无效
+   */
   // resolve template/el and convert to render function
   if (!options.render) {
     let template = options.template
@@ -68,7 +79,9 @@ Vue.prototype.$mount = function (
       if (process.env.NODE_ENV !== 'production' && config.performance && mark) {
         mark('compile')
       }
-
+      /**
+       * compileToFunctions: 将模板(template)字符串编译为渲染函数(render)
+       */
       const { render, staticRenderFns } = compileToFunctions(template, {
         shouldDecodeNewlines,
         shouldDecodeNewlinesForHref,
@@ -100,6 +113,8 @@ function getOuterHTML (el: Element): string {
   if (el.outerHTML) {
     return el.outerHTML
   } else {
+    // 为了兼容svg，svg标签既没有innerHTML，也没有outerHTML
+    //因此在外层创建一个div，div的innerHTML代替原标签的outerHTML
     const container = document.createElement('div')
     container.appendChild(el.cloneNode(true))
     return container.innerHTML

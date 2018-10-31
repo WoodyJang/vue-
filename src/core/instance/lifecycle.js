@@ -188,6 +188,7 @@ export function mountComponent (
       measure(`vue ${name} patch`, startTag, endTag)
     }
   } else {
+    // 把渲染函数生成的虚拟DOM渲染成真正的DOM
     updateComponent = () => {
       vm._update(vm._render(), hydrating)
     }
