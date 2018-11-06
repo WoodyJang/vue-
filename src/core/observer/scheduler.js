@@ -128,6 +128,8 @@ export function queueWatcher (watcher: Watcher) {
   const id = watcher.id
   if (has[id] == null) {
     has[id] = true
+    // flushing 变量的值设置为 true，代表着此时正在执行更新
+    // 判断当前是否在执行更新，只有不在更新的时候才会执行
     if (!flushing) {
       queue.push(watcher)
     } else {
@@ -140,8 +142,10 @@ export function queueWatcher (watcher: Watcher) {
       queue.splice(i + 1, 0, watcher)
     }
     // queue the flush
+    // 在 if 语句块内先将 waiting 的值设置为 true，这意味着无论调用多少次 queueWatcher 函数，该 if 语句块的代码只会执行一次
     if (!waiting) {
       waiting = true
+      // 等价于 setTimeout(flushSchedulerQueue, 0)
       nextTick(flushSchedulerQueue)
     }
   }

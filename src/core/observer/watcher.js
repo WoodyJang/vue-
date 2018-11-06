@@ -96,6 +96,9 @@ export default class Watcher {
    * Evaluate the getter, and re-collect dependencies.
    */
   get () {
+    // Dep 类拥有一个静态属性，即 Dep.target 属性
+    //pushTarget 函数的作用就是用来为 Dep.target 属性赋值的
+    // pushTarget 函数会将接收到的参数赋值给 Dep.target 属性，我们知道传递给 pushTarget 函数的参数就是调用该函数的观察者对象,Dep.target 保存着一个观察者对象，其实这个观察者对象就是即将要收集的目标。
     pushTarget(this)
     let value
     const vm = this.vm
@@ -124,6 +127,7 @@ export default class Watcher {
    */
   addDep (dep: Dep) {
     const id = dep.id
+    //newDepIds 属性用来在一次求值中避免收集重复的观察者
     if (!this.newDepIds.has(id)) {
       this.newDepIds.add(id)
       this.newDeps.push(dep)
@@ -136,8 +140,17 @@ export default class Watcher {
   /**
    * Clean up for dependency collection.
    */
+  /**
+   * 1、newDepIds 属性用来在一次求值中避免收集重复的观察者
+      2、每次求值并收集观察者完成之后会清空 newDepIds 和 newDeps 这两个属性的值，并且在被清空之前把值分别赋给了 depIds 属性和 deps 属性
+      3、depIds 属性用来避免重复求值时收集重复的观察者
+   */
+  //deps 属性还能够用来移除废弃的观察者
   cleanupDeps () {
     let i = this.deps.length
+    /**
+     * 这段 while 循环就是对 deps 数组进行遍历，也就是对上一次求值所收集到的 Dep 对象进行遍历，然后在循环内部检查上一次求值所收集到的 Dep 实例对象是否存在于当前这次求值所收集到的 Dep 实例对象中，如果不存在则说明该 Dep 实例对象已经和该观察者不存在依赖关系了，这时就会调用 dep.removeSub(this) 方法并以该观察者实例对象作为参数传递，从而将该观察者对象从 Dep 实例对象中移除。
+     */
     while (i--) {
       const dep = this.deps[i]
       if (!this.newDepIds.has(dep.id)) {
